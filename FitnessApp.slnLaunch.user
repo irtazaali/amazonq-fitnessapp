@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "New Profile",
+    "Projects": [
+      {
+        "Path": "FitnessApp.Server\\FitnessApp.Server.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "FitnessApp.Client\\FitnessApp.Client.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

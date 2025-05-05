@@ -1,0 +1,275 @@
+@page "/fitness"
+@using FitnessApp.Shared.Models
+@using System.Net.Http.Json
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Fitness Tracker</PageTitle>
+
+<h1>Fitness Tracker</h1>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3>Add New Exercise</h3>
+            </div>
+            <div class="card-body">
+                <EditForm Model="@newExercise" OnValidSubmit="@HandleExerciseSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="form-group mb-3">
+                        <label for="exerciseName">Exercise Name:</label>
+                        <InputText id="exerciseName" class="form-control" @bind-Value="newExercise.Name" />
+                        <ValidationMessage For="@(() => newExercise.Name)" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Add Exercise</button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (exercises == null)
+{
+    <p><em>Loading exercises...</em></p>
+}
+else if (!exercises.Any())
+{
+    <p>No exercises found. Add your first exercise above.</p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Your Exercises</h3>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="exercisesAccordion">
+                        @foreach (var exercise in exercises)
+                        {
+                            <div class="accordion-item">
+                                <h2 class="accordion-header" id="heading-@exercise.Id">
+                                    <button class="accordion-button @(selectedExerciseId == exercise.Id ? "" : "collapsed")" 
+                                            type="button" 
+                                            data-bs-toggle="collapse" 
+                                            data-bs-target="#collapse-@exercise.Id" 
+                                            aria-expanded="@(selectedExerciseId == exercise.Id ? "true" : "false")" 
+                                            aria-controls="collapse-@exercise.Id"
+                                            @onclick="() => SelectExercise(exercise.Id)">
+                                        @exercise.Name
+                                    </button>
+                                </h2>
+                                <div id="collapse-@exercise.Id" 
+                                     class="accordion-collapse collapse @(selectedExerciseId == exercise.Id ? "show" : "")" 
+                                     aria-labelledby="heading-@exercise.Id" 
+                                     data-bs-parent="#exercisesAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row mb-3">
+                                            <div class="col">
+                                                <h4>Sets</h4>
+                                                @if (exercise.Sets == null || !exercise.Sets.Any())
+                                                {
+                                                    <p>No sets recorded for this exercise.</p>
+                                                }
+                                                else
+                                                {
+                                                    <table class="table table-striped">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Set</th>
+                                                                <th>Reps</th>
+                                                                <th>Weight</th>
+                                                                <th>Actions</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var set in exercise.Sets.OrderBy(s => s.SetNumber))
+                                                            {
+                                                                <tr>
+                                                                    <td>@set.SetNumber</td>
+                                                                    <td>@set.Reps</td>
+                                                                    <td>@set.Weight</td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteSet(set.Id)">Delete</button>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                }
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col">
+                                                <h5>Add New Set</h5>
+                                                <EditForm Model="@newSet" OnValidSubmit="@(() => HandleSetSubmit(exercise.Id))">
+                                                    <DataAnnotationsValidator />
+                                                    <ValidationSummary />
+                                                    
+                                                    <div class="row">
+                                                        <div class="col">
+                                                            <div class="form-group">
+                                                                <label for="setNumber">Set #:</label>
+                                                                <InputNumber id="setNumber" class="form-control" @bind-Value="newSet.SetNumber" />
+                                                                <ValidationMessage For="@(() => newSet.SetNumber)" />
+                                                            </div>
+                                                        </div>
+                                                        <div class="col">
+                                                            <div class="form-group">
+                                                                <label for="reps">Reps:</label>
+                                                                <InputNumber id="reps" class="form-control" @bind-Value="newSet.Reps" />
+                                                                <ValidationMessage For="@(() => newSet.Reps)" />
+                                                            </div>
+                                                        </div>
+                                                        <div class="col">
+                                                            <div class="form-group">
+                                                                <label for="weight">Weight:</label>
+                                                                <InputNumber id="weight" class="form-control" @bind-Value="newSet.Weight" />
+                                                                <ValidationMessage For="@(() => newSet.Weight)" />
+                                                            </div>
+                                                        </div>
+                                                        <div class="col d-flex align-items-end">
+                                                            <button type="submit" class="btn btn-primary">Add Set</button>
+                                                        </div>
+                                                    </div>
+                                                </EditForm>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row mt-3">
+                                            <div class="col">
+                                                <button class="btn btn-danger" @onclick="() => DeleteExercise(exercise.Id)">Delete Exercise</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Exercise> exercises;
+    private Exercise newExercise = new Exercise { CreatedAt = DateTime.Now };
+    private ExerciseSet newSet = new ExerciseSet { SetNumber = 1, Reps = 10, Weight = 100 };
+    private int selectedExerciseId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadExercises();
+    }
+
+    private async Task LoadExercises()
+    {
+        try
+        {
+            exercises = await Http.GetFromJsonAsync<List<Exercise>>("api/exercises");
+            if (exercises != null && exercises.Any() && selectedExerciseId == 0)
+            {
+                selectedExerciseId = exercises.First().Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading exercises: {ex.Message}");
+            exercises = new List<Exercise>();
+        }
+    }
+
+    private void SelectExercise(int exerciseId)
+    {
+        selectedExerciseId = exerciseId;
+        // Reset the new set form with the next set number
+        var exercise = exercises.FirstOrDefault(e => e.Id == exerciseId);
+        if (exercise != null && exercise.Sets != null && exercise.Sets.Any())
+        {
+            newSet.SetNumber = exercise.Sets.Max(s => s.SetNumber) + 1;
+        }
+        else
+        {
+            newSet.SetNumber = 1;
+        }
+    }
+
+    private async Task HandleExerciseSubmit()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/exercises", newExercise);
+            response.EnsureSuccessStatusCode();
+            
+            // Reset form
+            newExercise = new Exercise { CreatedAt = DateTime.Now };
+            
+            await LoadExercises();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving exercise: {ex.Message}");
+        }
+    }
+
+    private async Task HandleSetSubmit(int exerciseId)
+    {
+        try
+        {
+            newSet.ExerciseId = exerciseId;
+            var response = await Http.PostAsJsonAsync("api/exercisesets", newSet);
+            response.EnsureSuccessStatusCode();
+            
+            // Increment set number for next entry
+            newSet.SetNumber++;
+            newSet.Reps = 10; // Reset reps
+            
+            await LoadExercises();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving set: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteExercise(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/exercises/{id}");
+            response.EnsureSuccessStatusCode();
+            
+            if (selectedExerciseId == id)
+            {
+                selectedExerciseId = 0;
+            }
+            
+            await LoadExercises();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting exercise: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteSet(int id)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/exercisesets/{id}");
+            response.EnsureSuccessStatusCode();
+            await LoadExercises();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting set: {ex.Message}");
+        }
+    }
+}

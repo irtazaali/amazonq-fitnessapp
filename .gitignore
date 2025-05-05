@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/FitnessApp.Client/bin/Debug/net8.0
+/FitnessApp.Client/obj
+/FitnessApp.Server/bin/Debug/net8.0
+/FitnessApp.Server/obj
+/FitnessApp.Shared/bin/Debug/net8.0
+/FitnessApp.Shared/obj
+/obj
